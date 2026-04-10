@@ -41,7 +41,7 @@ If you change application code, rebuild so the image picks it up: `make up` (inc
    - **`CRON_SECRET`** — a long random string. Vercel Cron will call `/api/cron/ingest-weather` with `Authorization: Bearer <CRON_SECRET>`; the handler rejects requests without a match.
 3. Deploy. The app builds with `npm run build` and serves `dist`; API routes live under `api/`.
 
-[`vercel.json`](vercel.json) configures SPA rewrites and a cron schedule (`*/5 * * * *`). **Cron availability and limits depend on your Vercel plan** (Hobby may restrict scheduled jobs — check current docs). If cron is unavailable, the UI still ingests on each visit via `GET /api/weather`.
+[`vercel.json`](vercel.json) configures SPA rewrites and a **daily** cron at **09:00 UTC** (`0 9 * * *`). Vercel schedules in UTC; change the hour in `vercel.json` if you need another timezone’s 9:00. **Cron availability and limits depend on your Vercel plan** — if cron is unavailable, the UI still ingests on each visit via `GET /api/weather`.
 
 ## API (same in Docker and Vercel)
 
