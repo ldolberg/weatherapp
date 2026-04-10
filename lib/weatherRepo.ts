@@ -6,7 +6,8 @@ import {
 
 const { Pool } = pg;
 
-const g = globalThis as typeof globalThis & { __weatherPgPool?: pg.Pool };
+/** Untyped: explicit `pg.Pool` here breaks @vercel/nft tracing of `./weatherRowKey.js`. */
+let cachedPool;
 
 function createPool(): pg.Pool {
   const connectionString = process.env.DATABASE_URL;
@@ -26,12 +27,12 @@ function createPool(): pg.Pool {
   });
 }
 
-/** Reuse pool across Vercel warm invocations and long-lived Docker. */
+/** Reuse pool across warm serverless invocations and long-lived Node processes. */
 export function getPool(): pg.Pool {
-  if (!g.__weatherPgPool) {
-    g.__weatherPgPool = createPool();
+  if (!cachedPool) {
+    cachedPool = createPool();
   }
-  return g.__weatherPgPool;
+  return cachedPool;
 }
 
 export async function upsertReadings(

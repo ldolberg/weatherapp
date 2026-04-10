@@ -4,23 +4,7 @@ import { getPool, upsertReadings } from "../../lib/weatherRepo.js";
 
 void http;
 
-type VercelRequest = http.IncomingMessage & {
-  query: Record<string, string | string[]>;
-  cookies: Record<string, string>;
-  body: unknown;
-};
-
-type VercelResponse = http.ServerResponse & {
-  send: (body: unknown) => VercelResponse;
-  json: (jsonBody: unknown) => VercelResponse;
-  status: (statusCode: number) => VercelResponse;
-  redirect: (statusOrUrl: string | number, url?: string) => VercelResponse;
-};
-
-export default async function handler(
-  req: VercelRequest,
-  res: VercelResponse
-) {
+export default async function handler(req, res) {
   if (req.method !== "GET") {
     res.setHeader("Allow", "GET");
     return res.status(405).end("Method Not Allowed");
