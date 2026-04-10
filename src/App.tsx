@@ -49,6 +49,9 @@ interface WeatherData {
 
 const API_URL = '/api/weather';
 const STATION_ID = '30536';
+/** Shown as the main title; station metadata (ID + REM name) stays in the header row above. */
+const DISPLAY_LOCATION = 'Villa de las Rosas';
+const DISPLAY_REGION = 'Córdoba';
 
 export default function App() {
   const [data, setData] = useState<WeatherData | null>(null);
@@ -120,13 +123,16 @@ export default function App() {
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-2 mb-2"
+            className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-2"
           >
             <span className="px-3 py-1 bg-[#FF8A65]/10 text-[#FF8A65] text-xs font-bold rounded-full uppercase tracking-wider">
               Live Station
             </span>
             <span className="text-[#8D8D8D] text-xs font-medium">
               ID: {data?.id}
+              {data?.estacion != null && data.estacion !== '' ? (
+                <span className="text-[#6B6B6B]"> · {data.estacion}</span>
+              ) : null}
             </span>
           </motion.div>
           <motion.h1 
@@ -135,9 +141,9 @@ export default function App() {
             transition={{ delay: 0.1 }}
             className="text-4xl md:text-5xl font-semibold tracking-tight text-[#2D2D2D]"
           >
-            {data?.estacion.split(' ')[0]}
+            {DISPLAY_LOCATION}
             <span className="text-[#FF8A65] font-light block md:inline md:ml-3">
-              {data?.estacion.split(' ').slice(1).join(' ')}
+              , {DISPLAY_REGION}
             </span>
           </motion.h1>
         </div>
