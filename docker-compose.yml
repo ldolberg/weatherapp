@@ -5,8 +5,7 @@ services:
       - "8080:3000"
     environment:
       NODE_ENV: production
-      WEATHER_DB_PATH: /app/data/weather.sqlite
+      DATABASE_URL: ${DATABASE_URL}
       WEATHER_CRON_ENABLED: "true"
       WEATHER_CRON: "*/5 * * * *"
-    volumes:
-      - ./data:/app/data
+    # Set DATABASE_URL in a project-root .env file (Supabase transaction pooler, port 6543).

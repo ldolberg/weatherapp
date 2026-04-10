@@ -19,7 +19,7 @@ export default defineConfig(({mode}) => {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
-      // Same contract as server.ts / Docker nginx: /api/weather must be JSON, not SPA index.html.
+      // When using Vite without Docker, proxy REM so /api/weather returns JSON (not SPA HTML).
       proxy: {
         '/api/weather': {
           target: 'https://rem.cba.gov.ar',

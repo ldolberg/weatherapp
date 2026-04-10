@@ -9,7 +9,7 @@ RUN npm install
 COPY . .
 RUN npm run build
 
-# Run Express + SQLite + cron (history only when this Node server handles /api/weather)
+# Run Express + Supabase Postgres + cron
 FROM node:20-slim
 
 WORKDIR /app
