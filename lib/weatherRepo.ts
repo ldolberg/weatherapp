@@ -1,13 +1,32 @@
+import { createHash } from "node:crypto";
 import pg from "pg";
-import {
-  normalizeStationId,
-  resolveSourceFecha,
-} from "./weatherRowKey.js";
 
 const { Pool } = pg;
 
-/** Untyped: explicit `pg.Pool` here breaks @vercel/nft tracing of `./weatherRowKey.js`. */
-let cachedPool;
+let cachedPool: pg.Pool | undefined;
+
+function normalizeStationId(raw: unknown): string {
+  if (raw === null || raw === undefined) return "";
+  return String(raw);
+}
+
+/** When REM omits fecha, one stable row per distinct payload per station. */
+function syntheticSourceFecha(stationId: string, row: unknown): string {
+  const h = createHash("sha256")
+    .update(JSON.stringify(row))
+    .digest("hex")
+    .slice(0, 16);
+  return `unknown:${stationId}:${h}`;
+}
+
+function resolveSourceFecha(
+  stationId: string,
+  row: Record<string, unknown>
+): string {
+  const fecha = row.fecha;
+  if (typeof fecha === "string" && fecha.trim() !== "") return fecha.trim();
+  return syntheticSourceFecha(stationId, row);
+}
 
 function createPool(): pg.Pool {
   const connectionString = process.env.DATABASE_URL;
