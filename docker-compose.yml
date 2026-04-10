@@ -1,0 +1,12 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8080:3000"
+    environment:
+      NODE_ENV: production
+      WEATHER_DB_PATH: /app/data/weather.sqlite
+      WEATHER_CRON_ENABLED: "true"
+      WEATHER_CRON: "*/5 * * * *"
+    volumes:
+      - ./data:/app/data
