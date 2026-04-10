@@ -13,24 +13,47 @@ import {
  */
 void http;
 
+/** Prefer env combos Vercel actually injects (not only VERCEL === "1"). */
+function isVercelDeployment(): boolean {
+  return (
+    process.env.VERCEL === "1" ||
+    process.env.VERCEL_ENV === "production" ||
+    process.env.VERCEL_ENV === "preview"
+  );
+}
+
 export default async function handler(req, res) {
   if (req.method !== "GET") {
     res.setHeader("Allow", "GET");
     return res.status(405).end("Method Not Allowed");
   }
   try {
-    // Live REM works from many home/office networks but often cannot be reached from Vercel
-    // (connect timeouts to rem.cba.gov.ar). Serve the latest Postgres snapshot there instead.
-    if (process.env.VERCEL === "1") {
-      const pool = getPool();
-      const data = await queryLatestSnapshot(pool);
-      if (!Array.isArray(data) || data.length === 0) {
+    // REM is reachable from many home networks but often not from Vercel → use Postgres cache.
+    if (isVercelDeployment()) {
+      if (!process.env.DATABASE_URL?.trim()) {
+        console.error("api/weather: DATABASE_URL missing on Vercel");
         return res.status(503).json({
           error:
-            "No cached weather data yet. Ingest once from a network that can reach REM (e.g. run `npm run dev` locally) so rows are written to Supabase.",
+            "DATABASE_URL is not set. Add your Supabase pooler connection string under Vercel → Project → Settings → Environment Variables.",
         });
       }
-      return res.status(200).json(data);
+      try {
+        const pool = getPool();
+        const data = await queryLatestSnapshot(pool);
+        if (!Array.isArray(data) || data.length === 0) {
+          return res.status(503).json({
+            error:
+              "No cached weather data yet. Run the app locally once (`npm run dev`) with DATABASE_URL so /api/weather can ingest REM into Supabase, then redeploy or wait for the next request.",
+          });
+        }
+        return res.status(200).json(data);
+      } catch (dbErr) {
+        console.error("api/weather: snapshot read failed:", dbErr);
+        return res.status(503).json({
+          error:
+            "Could not read cached weather from the database. Verify DATABASE_URL, SSL, and that public.weather_readings exists (see supabase/migrations).",
+        });
+      }
     }
 
     const data = await fetchRemMeasurements();
