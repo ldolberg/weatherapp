@@ -6,14 +6,9 @@ import {
   upsertReadings,
 } from "../../lib/weatherRepo.js";
 
-/**
- * Vercel bundles API routes with @vercel/nft. Typed handler params, `import type`, and
- * `globalThis as typeof globalThis` in dependencies can prevent tracing `lib/` (runtime
- * ERR_MODULE_NOT_FOUND). Keep `http` imported for Node; leave `req`/`res` untyped.
- */
+// Value import from node:http keeps the handler compatible with Vercel’s file tracer.
 void http;
 
-/** Prefer env combos Vercel actually injects (not only VERCEL === "1"). */
 function isVercelDeployment(): boolean {
   return (
     process.env.VERCEL === "1" ||

@@ -1,49 +1,103 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Weather Station — Córdoba REM
 
-# Run and deploy your AI Studio app
+Single-page dashboard for [REM](https://rem.cba.gov.ar/) agro-meteorology data: React UI, optional persistence in PostgreSQL (Supabase), and deployment on Vercel or Docker.
 
-This contains everything you need to run your app locally.
+## Requirements
 
-View your app in AI Studio: https://ai.studio/apps/ca091fc1-c5c3-44e4-89a5-ae1095671ba2
+- Node.js 20+
+- npm
+- A Supabase (or other PostgreSQL) database if you want history and Vercel-side reads
 
-## Database (Supabase)
+## Setup
 
-1. Create a [Supabase](https://supabase.com) project.
-2. In the SQL editor, run the migration in [`supabase/migrations/001_weather_readings.sql`](supabase/migrations/001_weather_readings.sql).
-3. Copy the **Transaction pooler** connection URI (port **6543**) from **Project Settings → Database** — use it as `DATABASE_URL` for Docker and Vercel.
+1. Clone the repository and install dependencies:
 
-## Run locally (Docker only)
+   ```bash
+   npm install
+   ```
 
-**Prerequisites:** [Docker](https://docs.docker.com/get-docker/) and Docker Compose v2.
+2. Copy `.env.example` to `.env` and set **`DATABASE_URL`** to your **Supabase transaction pooler** URI (port `6543`, `pgbouncer=true`). See [Supabase: Connect to your database](https://supabase.com/docs/guides/database/connecting-to-postgres).
 
-Do **not** run `npm install` / `npm run dev` on your machine for this app. All installs and Node commands happen **inside the image** at build/runtime.
+3. Apply the schema:
 
-1. Copy [`.env.example`](.env.example) to `.env` and set **`DATABASE_URL`** to your Supabase pooler URI (required).
-2. From the project root:
-   - `make up`  
-   or  
-   - `docker compose up --build`
-3. Open [http://localhost:8080](http://localhost:8080) (maps container port 3000 → host 8080).
+   ```bash
+   # Run the SQL in Supabase SQL Editor, or use the CLI if you use Supabase migrations locally:
+   # supabase/migrations/001_weather_readings.sql
+   ```
 
-Docker Compose reads `.env` from the project root for variable substitution (`DATABASE_URL` is passed into the container).
+## Local development
 
-Other Make targets: `make down`, `make build`, `make logs`, `make ps`.
+```bash
+npm run dev
+```
 
-If you change application code, rebuild so the image picks it up: `make up` (includes `--build`).
+Starts Express with Vite middleware (default **http://localhost:3000**). `GET /api/weather` loads data from REM, upserts rows into `weather_readings`, and returns the same JSON array the UI expects.
 
-## Deploy to Vercel
+Other commands:
 
-1. Push the repo to GitHub and import the project in [Vercel](https://vercel.com).
-2. In **Project → Settings → Environment Variables**, set:
-   - **`DATABASE_URL`** — same Supabase **transaction pooler** URI as above.
-   - **`CRON_SECRET`** — a long random string. Vercel Cron will call `/api/cron/ingest-weather` with `Authorization: Bearer <CRON_SECRET>`; the handler rejects requests without a match.
-3. Deploy. The app builds with `npm run build` and serves `dist`; API routes live under `api/`.
+| Command        | Purpose                          |
+|----------------|----------------------------------|
+| `npm run build`| Production frontend → `dist/`    |
+| `npm run start`| Production Express + static `dist` |
+| `npm run lint` | `tsc --noEmit`                   |
+| `npm run preview` | Preview built assets (Vite)  |
 
-[`vercel.json`](vercel.json) configures SPA rewrites and a **daily** cron at **09:00 UTC** (`0 9 * * *`). Vercel schedules in UTC; change the hour in `vercel.json` if you need another timezone’s 9:00. **Cron availability and limits depend on your Vercel plan** — if cron is unavailable, the UI still ingests on each visit via `GET /api/weather`.
+Optional background ingest on the Node server (not used on Vercel), via `.env`:
 
-## API (same in Docker and Vercel)
+- `WEATHER_CRON_ENABLED` — set to `false` to disable scheduled ingest (default: enabled unless set to `false`).
+- `WEATHER_CRON` — cron expression (default `*/5 * * * *`).
 
-- `GET /api/weather` — live REM JSON + upsert into Postgres.
-- `GET /api/weather/history?stationId=...&limit=...&since=...` — stored readings.
+## Environment variables
+
+| Variable           | Required | Where used |
+|--------------------|----------|------------|
+| `DATABASE_URL`     | Yes, for DB features | Local server, Docker, Vercel |
+| `CRON_SECRET`      | Yes on Vercel if you use cron | Vercel only; `Authorization: Bearer …` on `/api/cron/ingest-weather` |
+| `WEATHER_CRON`     | No       | `server.ts` only |
+| `WEATHER_CRON_ENABLED` | No   | `server.ts` only |
+
+See `.env.example` for copy-paste templates. The weather API path requires `DATABASE_URL`; Vercel cron security requires `CRON_SECRET`.
+
+## HTTP API
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET`  | `/api/weather` | Current REM-shaped JSON array; persists to Postgres when the server can reach REM |
+| `GET`  | `/api/weather/history?stationId=&limit=&since=` | Paginated history for one station |
+
+### Production on Vercel
+
+Vercel serverless functions often **cannot open outbound connections** to `rem.cba.gov.ar` (timeouts from many regions). On Vercel, `GET /api/weather` therefore serves the **latest row per station** from `weather_readings` instead of calling REM. Ensure the table is populated periodically from an environment that can reach REM (e.g. this app running locally or on a host inside Argentina with working egress).
+
+## Deploy on Vercel
+
+1. Connect the Git repository and use the defaults from `vercel.json` (`npm run build`, output `dist`).
+2. Set **Environment variables**:
+   - `DATABASE_URL` — same pooler URI as local.
+   - `CRON_SECRET` — long random secret; must match the bearer token Vercel sends to the cron route.
+3. Redeploy after changing variables.
+
+Cron is declared in `vercel.json` (`/api/cron/ingest-weather`, schedule in UTC). Ingest from Vercel will only succeed if REM is reachable from Vercel’s network; if not, rely on ingestion from elsewhere and use Vercel only to **read** the cache via `GET /api/weather`.
+
+## Docker
+
+```bash
+cp .env.example .env   # set DATABASE_URL
+docker compose up --build
+```
+
+Application listens on container port **3000**; Compose maps **8080 → 3000**. Makefile targets: `make up`, `make down`, `make logs`.
+
+The image runs `server.ts` in production mode (built `dist` + Express), not Vercel’s `api/` tree.
+
+## Project layout
+
+- `src/` — React application
+- `server.ts` — Local/production Node server (REM fetch, DB, optional cron)
+- `api/` — Vercel serverless routes (`api/weather`, `api/weather/history`, `api/cron/ingest-weather`)
+- `lib/` — Shared ingestion and Postgres helpers
+- `supabase/migrations/` — SQL for `weather_readings`
+
+## License
+
+Per-file SPDX identifiers apply where present in source headers.
