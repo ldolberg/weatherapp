@@ -137,3 +137,18 @@ export async function queryHistory(
         : r.data_json,
   }));
 }
+
+/** Latest REM-shaped row per station (for /api/weather when live REM is unavailable, e.g. on Vercel). */
+export async function queryLatestSnapshot(pool: pg.Pool): Promise<unknown[]> {
+  const sql = `
+    SELECT DISTINCT ON (station_id) data_json
+    FROM public.weather_readings
+    ORDER BY station_id, ingested_at DESC
+  `;
+  const { rows } = await pool.query<{ data_json: unknown }>(sql);
+  return rows.map((r) =>
+    typeof r.data_json === "string"
+      ? (JSON.parse(r.data_json) as unknown)
+      : r.data_json
+  );
+}
