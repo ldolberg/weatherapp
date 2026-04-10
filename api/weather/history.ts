@@ -1,5 +1,20 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getPool, queryHistory } from "../../lib/weatherRepo";
+import * as http from "node:http";
+import { getPool, queryHistory } from "../../lib/weatherRepo.js";
+
+void http;
+
+type VercelRequest = http.IncomingMessage & {
+  query: Record<string, string | string[]>;
+  cookies: Record<string, string>;
+  body: unknown;
+};
+
+type VercelResponse = http.ServerResponse & {
+  send: (body: unknown) => VercelResponse;
+  json: (jsonBody: unknown) => VercelResponse;
+  status: (statusCode: number) => VercelResponse;
+  redirect: (statusOrUrl: string | number, url?: string) => VercelResponse;
+};
 
 export default async function handler(
   req: VercelRequest,

@@ -2,7 +2,7 @@ import pg from "pg";
 import {
   normalizeStationId,
   resolveSourceFecha,
-} from "./weatherRowKey";
+} from "./weatherRowKey.js";
 
 const { Pool } = pg;
 
